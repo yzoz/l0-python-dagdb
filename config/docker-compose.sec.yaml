@@ -1,0 +1,118 @@
+services:
+  rabbitmq:
+    image: rabbitmq:management
+    container_name: rabbit
+    hostname: rabbit
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER_FILE: /run/secrets/rabbitmq-username
+      RABBITMQ_DEFAULT_PASS_FILE: /run/secrets/rabbitmq-password
+    secrets:
+      - rabbitmq-username
+      - rabbitmq-password
+
+  mongodb:
+    image: mongo:latest
+    container_name: mongo
+    hostname: mongo
+    ports:
+      - "27017:27017"  # Ограничение на localhost
+    environment:
+      MONGO_INITDB_ROOT_USERNAME_FILE: /run/secrets/mongo-username
+      MONGO_INITDB_ROOT_PASSWORD_FILE: /run/secrets/mongo-password
+    secrets:
+      - mongo-username
+      - mongo-password
+
+  keydb:
+    image: eqalpha/keydb:latest
+    command: keydb-server /etc/keydb/keydb.conf --server-threads 2 --bind 0.0.0.0 --requirepass-file /run/secrets/keydb-password
+    container_name: keydb
+    hostname: keydb
+    ports:
+      - "6379:6379"  # Ограничение на localhost
+    secrets:
+      - keydb-password
+
+  memgraph:
+    image: memgraph/memgraph:latest
+    container_name: memgraph
+    hostname: memgraph
+    ports:
+      - "7687:7687"  # Ограничение на localhost
+    environment:
+      MEMGRAPH_USER_FILE: /run/secrets/memgraph-username
+      MEMGRAPH_PASSWORD_FILE: /run/secrets/memgraph-password
+    secrets:
+      - memgraph-username
+      - memgraph-password
+
+  memlab:
+    image: memgraph/lab:latest
+    container_name: memlab
+    hostname: memlab
+    ports:
+      - "3000:3000"  # Ограничение на localhost
+    environment:
+      - MEMGRAPH_HOST=memgraph
+      - MEMGRAPH_PORT=7687
+      - MEMGRAPH_USERNAME_FILE=/run/secrets/memgraph-username
+      - MEMGRAPH_PASSWORD_FILE=/run/secrets/memgraph-password
+    depends_on:
+      - memgraph
+    secrets:
+      - memgraph-username
+      - memgraph-password
+
+  influxdb2:
+    image: influxdb:2
+    container_name: influx
+    hostname: influx
+    ports:
+      - "8086:8086"  # Уже ограничено на localhost
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME_FILE: /run/secrets/influxdb2-admin-username
+      DOCKER_INFLUXDB_INIT_PASSWORD_FILE: /run/secrets/influxdb2-admin-password
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN_FILE: /run/secrets/influxdb2-admin-token
+      DOCKER_INFLUXDB_INIT_ORG: yat
+      DOCKER_INFLUXDB_INIT_BUCKET: stat
+    secrets:
+      - influxdb2-admin-username
+      - influxdb2-admin-password
+      - influxdb2-admin-token
+    volumes:
+      - type: volume
+        source: influxdb2-data
+        target: /var/lib/influxdb2
+      - type: volume
+        source: influxdb2-config
+        target: /etc/influxdb2
+
+secrets:
+  rabbitmq-username:
+    file: config/.env.rabbitmq-username
+  rabbitmq-password:
+    file: config/.env.rabbitmq-password
+  mongo-username:
+    file: config/.env.mongo-username
+  mongo-password:
+    file: config/.env.mongo-password
+  keydb-password:
+    file: config/.env.keydb-password
+  memgraph-username:
+    file: config/.env.memgraph-username
+  memgraph-password:
+    file: config/.env.memgraph-password
+  influxdb2-admin-username:
+    file: config/.env.influxdb2-admin-username
+  influxdb2-admin-password:
+    file: config/.env.influxdb2-admin-password
+  influxdb2-admin-token:
+    file: config/.env.influxdb2-admin-token
+
+volumes:
+  influxdb2-data:
+  influxdb2-config:

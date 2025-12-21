@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Yat DAG-chain</title>
+    <meta property="og:site_name" content="yat.io" />
+    <meta property="og:title" content="Yat DAO">
+    <meta property="og:type" content="website" />
+    <meta property="og:description" content="A new financial continuum powered by DAG">
+    <meta property="og:image" content="https://yat.io/static/preview.jpg">
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:url" content="https://yat.io/">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Yat DAO">
+    <meta name="twitter:description" content="A new financial continuum powered by DAG">
+    <meta name="twitter:image" content="https://yat.io/static/preview.jpg">
+    <meta name="twitter:image:type" content="image/jpg">
+    <meta name="twitter:image:width" content="1200">
+    <meta name="twitter:image:height" content="630">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Roboto+Mono:wght@400&family=Exo+2:wght@700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" />
+    <link rel="icon" type="image/png" sizes="128x128" href="https://app.yat.io/icons/favicon-128x128.png" />
+    <link rel="icon" type="image/png" sizes="96x96" href="https://app.yat.io/icons/favicon-96x96.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="https://app.yat.io/icons/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="https://app.yat.io/icons/favicon-16x16.png" />
+    <link rel="icon" type="image/ico" href="https://app.yat.io/favicon.ico" />
+    <link rel="stylesheet" href="/static/index.css" />
+</head>
+<body>
+    <canvas id="webgl-bg"></canvas>
+    <header>
+        <div class="logo">Yat</div>
+        <nav>
+            <a href="https://app.yat.io"><i class="fas fa-wallet"></i> Wallet</a>
+            <a href="https://explorer.yat.io"><i class="fas fa-compass"></i> Explorer</a>
+            <a href="https://yat.io/whitepaper.pdf"><i class="fas fa-file-alt"></i> Whitepaper</a>
+        </nav>
+    </header>
+    <section class="hero">
+        <h1>Yat</h1>
+        <p>Where code stops, awareness kicks in</p>
+        <div class="cta">
+            <a href="https://explorer.yat.io">Explore</a>
+            <a href="https://app.yat.io">Join</a>
+            <a href="https://yat.io/whitepaper.pdf">Learn</a>
+        </div>
+    </section>
+    <section class="features">
+        <h2>Core</h2>
+        <div class="features-grid">
+            <div class="feature">
+                <h3>DAG</h3>
+                <p>Parallel, scalable transactions.</p>
+            </div>
+            <div class="feature">
+                <h3>Ed25519</h3>
+                <p>Unbreakable security with NaCl.</p>
+            </div>
+            <div class="feature">
+                <h3>DAO</h3>
+                <p>You govern the future.</p>
+            </div>
+            <div class="feature">
+                <h3>iFEHU</h3>
+                <p>Power, not speculation.</p>
+            </div>
+        </div>
+    </section>
+    <section class="tech">
+        <h2>Tech</h2>
+        <div class="tech-list">
+            <p>
+                <span>Python</span> · 
+                <span>Rust</span> · 
+                <span>Raft</span> ·
+                <span>RabbitMQ</span> · 
+                <span>Redis</span> · 
+                <span>MongoDB</span> · 
+                <span>InfluxDB</span>
+            </p>
+        </div>
+    </section>
+    <section class="metrics">
+        <h2>Pulse</h2>
+        <div class="carousel">
+            <div class="slide" id="tps-slide">
+                <canvas id="tps-chart" width="600" height="400"></canvas>
+            </div>
+            <div class="slide" id="addresses-slide">
+                <canvas id="addresses-chart" width="600" height="400"></canvas>
+            </div>
+            <div class="slide" id="volume-slide">
+                <canvas id="volume-chart" width="600" height="400"></canvas>
+            </div>
+        </div>
+    </section>
+    <footer>
+        <p class="footer-summary">Yat is a decentralized financial platform built on DAG and Ed25519 cryptography, offering a scalable, secure, and transparent alternative to traditional finance. With no blocks or mining, it enables parallel transactions and true financial freedom. Powered by iFEHU for governance, Yat is shaping the future of Web3 finance. Join us and be part of a movement towards a community-driven financial ecosystem.</p>
+    </footer>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/ScrollTrigger.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.1/chart.min.js"></script>
+    <script>
+        // WebGL Cosmic Background
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('webgl-bg'), alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight); // Fixed typo: inner形式 -> innerHeight
+        camera.position.z = 50;
+
+        const particles = new THREE.BufferGeometry();
+        const particleCount = window.innerWidth < 768 ? 2000 : 5000; // Reduce particles on mobile
+        const positions = new Float32Array(particleCount * 3);
+        for (let i = 0; i < particleCount * 3; i++) {
+            positions[i] = (Math.random() - 0.5) * 200;
+        }
+        particles.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        const particleMaterial = new THREE.PointsMaterial({ color: 0x00ffcc, size: 0.5, transparent: true });
+        const particleSystem = new THREE.Points(particles, particleMaterial);
+        scene.add(particleSystem);
+
+        function animateWebGL() {
+            requestAnimationFrame(animateWebGL);
+            particleSystem.rotation.y += 0.001;
+            renderer.setSize(window.innerWidth, window.innerHeight); // Update size on resize
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.render(scene, camera);
+        }
+        animateWebGL();
+
+        // GSAP Animations
+        gsap.from('.hero h1', { opacity: 0, y: -100, duration: 1.5, ease: 'power2.out' });
+        gsap.from('.hero p', { opacity: 0, y: 100, duration: 1.5, delay: 0.5, ease: 'power2.out' });
+        gsap.from('.cta a', { opacity: 0, scale: 0, duration: 1, stagger: 0.2, delay: 1, ease: 'elastic.out(1, 0.5)' });
+
+        // Scroll-triggered animations
+        gsap.from('.features h2', {
+            opacity: 0,
+            y: 50,
+            duration: 1,
+            ease: 'power2.out',
+            scrollTrigger: {
+                trigger: '.features',
+                start: 'top 80%',
+                toggleActions: 'play none none none'
+            }
+        });
+        gsap.from('.feature', {
+            opacity: 0,
+            scale: 0.8,
+            duration: 1,
+            stagger: 0.2,
+            ease: 'power2.out',
+            scrollTrigger: {
+                trigger: '.features-grid',
+                start: 'top 80%',
+                toggleActions: 'play none none none'
+            }
+        });
+        gsap.from('.tech h2', {
+            opacity: 0,
+            x: -50,
+            duration: 1,
+            ease: 'power2.out',
+            scrollTrigger: {
+                trigger: '.tech',
+                start: 'top 80%',
+                toggleActions: 'play none none none'
+            }
+        });
+        gsap.from('.tech-list', {
+            opacity: 0,
+            y: 30,
+            duration: 1,
+            ease: 'power2.out',
+            scrollTrigger: {
+                trigger: '.tech',
+                start: 'top 80%',
+                toggleActions: 'play none none none'
+            }
+        });
+        gsap.from('.tech-list span', {
+            opacity: 0,
+            y: 20,
+            duration: 0.8,
+            stagger: 0.3,
+            ease: 'power2.out',
+            scrollTrigger: {
+                trigger: '.tech-list',
+                start: 'top 80%',
+                toggleActions: 'play none none none'
+            }
+        });
+        gsap.from('.metrics h2', {
+            opacity: 0,
+            y: 50,
+            duration: 1,
+            ease: 'power2.out',
+            scrollTrigger: {
+                trigger: '.metrics',
+                start: 'top 80%',
+                toggleActions: 'play none none none'
+            }
+        });
+        gsap.from('.carousel', {
+            opacity: 0,
+            scale: 0.9,
+            duration: 1.2,
+            ease: 'power2.out',
+            scrollTrigger: {
+                trigger: '.metrics',
+                start: 'top 80%',
+                toggleActions: 'play none none none'
+            }
+        });
+
+        // Metrics Carousel
+        const slides = document.querySelectorAll('.slide');
+        let currentSlide = 0;
+        slides[currentSlide].classList.add('active');
+        setInterval(() => {
+            slides[currentSlide].classList.remove('active');
+            currentSlide = (currentSlide + 1) % slides.length;
+            slides[currentSlide].classList.add('active');
+        }, 5000);
+
+        // Random Data Generation
+        function generateRandomData(points, startValue, endValue, maxDipCount = 4, maxDipPercent = 0.2) {
+            const data = [];
+            for (let i = 0; i < points; i++) {
+                const progress = i / (points - 1);
+                const baseValue = startValue + (endValue - startValue) * progress;
+                const noise = (Math.random() - 0.5) * 0.05 * baseValue; // ±5% noise
+                let value = baseValue + noise;
+                value = Math.max(startValue, Math.min(endValue, value)); // Clamp to range
+                data.push(value);
+            }
+            // Add random dips
+            const dipIndices = Array.from({ length: maxDipCount }, () => Math.floor(Math.random() * points)).sort((a, b) => a - b);
+            dipIndices.forEach(index => {
+                if (index > 0 && index < points - 1) {
+                    data[index] *= (1 - Math.random() * maxDipPercent);
+                    data[index] = Math.max(startValue, data[index]); // Ensure within range
+                }
+            });
+            return data.map(value => Math.round(value));
+        }
+
+        // Charts
+        const chartConfig = {
+            options: {
+                scales: {
+                    y: { beginAtZero: true, ticks: { color: '#e0e0e0', font: { size: window.innerWidth < 768 ? 10 : 12 } } },
+                    x: { ticks: { color: '#e0e0e0', font: { size: window.innerWidth < 768 ? 10 : 12 } } }
+                },
+                plugins: { legend: { labels: { color: '#e0e0e0', font: { size: window.innerWidth < 768 ? 10 : 12 } } } }
+            }
+        };
+
+        new Chart(document.getElementById('tps-chart').getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: Array(24).fill('').map((_, i) => `${i}h`),
+                datasets: [{
+                    label: 'TPS',
+                    data: generateRandomData(24, 100, 250, 4, 0.2),
+                    borderColor: '#00ffcc',
+                    backgroundColor: 'rgba(0, 255, 204, 0.2)'
+                }]
+            },
+            ...chartConfig
+        });
+
+        new Chart(document.getElementById('addresses-chart').getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: Array(30).fill('').map((_, i) => `Day ${i + 1}`),
+                datasets: [{
+                    label: 'Active Addresses',
+                    data: generateRandomData(30, 50, 500, 4, 0.2),
+                    backgroundColor: '#00ffcc'
+                }]
+            },
+            ...chartConfig
+        });
+
+        new Chart(document.getElementById('volume-chart').getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: Array(26).fill('').map((_, i) => `Week ${i + 1}`),
+                datasets: [{
+                    label: 'Volume',
+                    data: generateRandomData(26, 0, 1000000, 4, 0.2),
+                    borderColor: '#00ffcc',
+                    backgroundColor: 'rgba(0, 255, 204, 0.2)'
+                }]
+            },
+            ...chartConfig
+        });
+    </script>
+</body>
+</html>

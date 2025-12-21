@@ -1,0 +1,69 @@
+services:
+  rabbitmq:
+    image: rabbitmq:management
+    container_name: rabbit
+    hostname: rabbit
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: JQ2Y2dEUcGmmarKw9mDb2x9XXrVSKkst
+
+  mongodb:
+    image: mongo:latest
+    container_name: mongo
+    hostname: mongo
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: JQ2Y2dEUcGmmarKw9mDb2x9XXrVSKkst
+    volumes:
+      - mongodb-data:/data/db
+
+  keydb:
+    image: eqalpha/keydb:latest
+    command: keydb-server /etc/keydb/keydb.conf --server-threads 12 --bind 0.0.0.0 --requirepass JQ2Y2dEUcGmmarKw9mDb2x9XXrVSKkst 
+    container_name: keydb
+    hostname: keydb
+    ports:
+      - "6379:6379"
+    volumes:
+      - keydb-data:/data
+
+  influxdb2:
+    image: influxdb:2
+    container_name: influx
+    hostname: influx
+    ports:
+      - "8086:8086"
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME_FILE: /run/secrets/influxdb2-admin-username
+      DOCKER_INFLUXDB_INIT_PASSWORD_FILE: /run/secrets/influxdb2-admin-password
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN_FILE: /run/secrets/influxdb2-admin-token
+      DOCKER_INFLUXDB_INIT_ORG: yat
+      DOCKER_INFLUXDB_INIT_BUCKET: stat
+    secrets:
+      - influxdb2-admin-username
+      - influxdb2-admin-password
+      - influxdb2-admin-token
+    volumes:
+      - influxdb2-data:/var/lib/influxdb2
+      - influxdb2-config:/etc/influxdb2
+
+secrets:
+  influxdb2-admin-username:
+    file: config/.env.influxdb2-admin-username
+  influxdb2-admin-password:
+    file: config/.env.influxdb2-admin-password
+  influxdb2-admin-token:
+    file: config/.env.influxdb2-admin-token
+
+volumes:
+  mongodb-data:
+  keydb-data:
+  memgraph-data:
+  influxdb2-data:
+  influxdb2-config:

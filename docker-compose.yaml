@@ -1,24 +1,58 @@
-version: "3"
-
 services:
   rabbitmq:
     image: rabbitmq:management
+    restart: unless-stopped
     container_name: rabbit
     hostname: rabbit
     ports:
-      - 5672:5672
-      - 15672:15672
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: JQ2Y2dEUcGmmarKw9mDb2x9XXrVSKkst
 
   mongodb:
     image: mongo:latest
+    restart: unless-stopped
     container_name: mongo
     hostname: mongo
     ports:
-      - 27017:27017
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: JQ2Y2dEUcGmmarKw9mDb2x9XXrVSKkst
+    volumes:
+      - mongodb-data:/var/lib/mongodb
 
-  redis:
-    image: redis:latest
-    container_name: redis
-    hostname: redis
+  keydb:
+    image: eqalpha/keydb:latest
+    restart: unless-stopped
+    command: keydb-server /etc/keydb/keydb.conf --server-threads 4 --bind 0.0.0.0 --requirepass JQ2Y2dEUcGmmarKw9mDb2x9XXrVSKkst 
+    container_name: keydb
+    hostname: keydb
     ports:
-      - 6379:6379
+      - "6379:6379"
+    volumes:
+      - keydb-data:/var/lib/redis
+
+  influxdb2:
+    image: influxdb:2
+    restart: unless-stopped
+    container_name: influx
+    hostname: influx
+    ports:
+      - "8086:8086"
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=JQ2Y2dEUcGmmarKw9mDb2x9XXrVSKkst
+      - DOCKER_INFLUXDB_INIT_ORG=simha
+      - DOCKER_INFLUXDB_INIT_BUCKET=market
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=WdTB65aKLfT-ip4fdnNXmhpQeqj7Zp4xhgdav_YQg0vkVn82YB7_HP4P3zEGp2O28czwPKKPRzfAsop_2paj5w==
+    volumes:
+      - influxdb2-data:/var/lib/influxdb2
+
+volumes:
+  mongodb-data:
+  keydb-data:
+  influxdb2-data:

@@ -1,69 +1,114 @@
+import asyncio
+import json
+from src.models.tx import TxStore
+from src.utils.data import hash_hex, ordered_sum
+from pymongo import MongoClient, IndexModel, ASCENDING
+import redis.asyncio as redis
+from aio_pika import connect_robust
 import time
-import random
-import uuid
-import base58
-import hashlib
-from nacl.encoding import HexEncoder
-from nacl.signing import SigningKey
-from src.models import Ask, Vote
-from pymongo import MongoClient
+import logging
 
-cli = MongoClient('localhost', 27017)
+# Настройка логирования
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
-db = cli.yat
-txs = db.tx
-asks = db.asks
-votes = db.votes
+async def main():
+    # Инициализация подключений
+    redis_client = redis.Redis(host="localhost", port=6379, password="JQ2Y2dEUcGmmarKw9mDb2x9XXrVSKkst", decode_responses=True)
+    mongo_client = MongoClient('mongodb://localhost:27017', username="admin", password="JQ2Y2dEUcGmmarKw9mDb2x9XXrVSKkst")
+    rabit_client = await connect_robust(f"amqp://admin:JQ2Y2dEUcGmmarKw9mDb2x9XXrVSKkst@localhost/")
+    db = mongo_client.feo
+    txs = db.tx
 
-def tob2b(t):
-    h = hashlib.blake2b()
-    h.update(t)
-    return base58.b58encode(h.digest())
+    async with rabit_client:
+        try:
+            channel = await rabit_client.channel()
+            await channel.queue_delete("tx")
+            logger.info("Deleted RabbitMQ queue 'tx'")
+        except Exception as e:
+            logger.error(f"Failed to delete RabbitMQ queue 'tx': {str(e)}")
 
-sk = 'DQsYfHpJ9WAGai9JJ1eDntkx4CpeCAbhPi2MrPDiwYs5'
-sk_bytes = base58.b58decode(sk.encode())
-pk = 'B3qUs7s5C5G4n7V5x2XE4JMWzPMvVXWRzkxfp76zgs6t'
+    # Очистка MongoDB
+    txs.drop()
+    logger.info("MongoDB collection 'tx' dropped")
+    txs.create_indexes([IndexModel([("hash", ASCENDING)], unique=True)])
+    txs.create_indexes([IndexModel([("credit", ASCENDING), ("uniq", 1)])])
 
-amount = 1000000000000
-uniq = str(uuid.uuid4())
-m = pk + str(amount) + str(uniq)
-signing_key = SigningKey(sk_bytes)
-message_bytes = bytes(m.encode("utf-8"))
-signed = base58.b58encode(signing_key.sign(message_bytes))
-hash_ask = tob2b(signed)
+    # Подключение к Redis
+    await redis_client.flushall()
+    logger.info("Redis flushed")
 
-a = Ask(addr = pk,
-    amount = amount,
-    uniq = uniq,
-    title = '',
-    cover = '',
-    desc = '',
-    sign = signed,
-    prev_hash = '',
-    hash = hash_ask,
-    time = int(round(time.time() * 1000)))
+    # Определение генезис-транзакций
+    genesis_txs = [
+        dict(
+            prnts=[],
+            addr="",
+            seq=0,
+            var=dict(
+                ca="0",
+                to="Hm4GGGtBGiLzHoVSTvXqz5JoV9JXqJWiYrZvXp6GCy4L",
+                val=500_000_000_000_000,
+                msg="genesis",
+            )
+        ),
+        dict(
+            prnts=[],
+            addr="",
+            seq=0,
+            var=dict(
+                ca="0",
+                to="RvCcJWKYpoEXGm6N72kDj3dA8zTxGTMSBpCLSKcJvdR",
+                val=330000000000000,
+                msg="genesis2",
+            )
+        ),
+        dict(
+            prnts=[],
+            addr="",
+            seq=0,
+            var=dict(
+                ca="0",
+                to="2RAHCZg7SfyLY6x5uLmtDh1tNbZr4w5NTPMWXpHrqdyc",
+                val=250000000000000,
+                msg="genesis3",
+            )
+        ),
+    ]
 
-r = asks.insert_one(dict(a))
-if r.inserted_id: print(r.inserted_id)
+    try:
 
-uniq = str(uuid.uuid4())
-like = True
-m = pk + str(hash_ask) + str(like) + str(uniq)
-message_bytes = bytes(m.encode("utf-8"))
-signed = base58.b58encode(signing_key.sign(message_bytes))
-hash_vote = tob2b(signed)
+        # Добавление генезис-транзакций
+        genesis_json = []
+        for tx in genesis_txs:
+            tx_dict = dict(tx)
+            tx_hash = hash_hex(ordered_sum(tx_dict))
+            tx_data = {
+                "tx": tx_dict,
+                "sign": "",
+                "func": "transferToken",
+            }
+            
+            genesis_json.append({"hash": tx_hash, "data": tx_data}) 
 
-v = Vote(addr = pk,
-    id = hash_ask,
-    like = like,
-    uniq = uniq,
-    sign = signed,
-    prev_hash = '',
-    hash = hash_vote,
-    time = int(round(time.time() * 1000)))
+            # Установка баланса в Redis
+            """await redis_client.set(f"balance:{tx.debit}", tx.amount)
+            logger.info(f"Created transaction {tx_hash} with balance {tx.amount} for {tx.debit}")"""
 
-r = votes.insert_one(dict(v))
-if r.inserted_id: print(r.inserted_id)    
+        # Сохранение генезис-транзакций в genesis.json
+        with open("db/genesis.json", "w") as f:
+            json.dump(genesis_json, f, indent=2)
 
-print(a)
-print(v)
+    except Exception as e:
+        logger.error(f"Error in genesis setup: {str(e)}")
+        raise
+
+    finally:
+        await redis_client.aclose()
+        mongo_client.close()
+        logger.info("All connections closed")
+
+if __name__ == "__main__":
+    asyncio.run(main())
